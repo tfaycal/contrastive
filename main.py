@@ -38,8 +38,7 @@ def train(rank, world_size, net, data_loader, train_optimizer,temperature):
     net.train()
     net=net.to(device)
     for pos_1, pos_2, target in train_bar:
-        pos_1, pos_2 = pos_1.to(device, non_blocking=True), pos_2.to(device, non_blocking=True)
-        target = target.to(device, non_blocking=True)  # Make sure target is also on the right device
+       
         # Split the data according to the number of GPUs
         batch_size = pos_1.size(0)
         batch_gpu = batch_size // world_size
@@ -60,7 +59,8 @@ def train(rank, world_size, net, data_loader, train_optimizer,temperature):
           
           # Zero the gradients
           train_optimizer.zero_grad()
-          
+          pos_1_batch, pos_1_batch = pos_1_batch.to(device, non_blocking=True), pos_1_batch.to(device, non_blocking=True)
+          target_batch = target_batch.to(device, non_blocking=True)  # Make sure target is also on the right device
           # Forward pass
           feature_1, out_1 = net(pos_1_batch)
           feature_2, out_2 = net(pos_2_batch)
