@@ -30,15 +30,17 @@ def setup_distributed(rank, world_size):
     torch.cuda.set_device(rank)
 def cleanup():
     dist.destroy_process_group()
-def train(rank, world_size, net, data_loader, train_optimizer,temperature):
-     
+def train(rank, world_size, net, data_loader, train_optimizer, temperature, epoch, epochs):
     torch.autograd.set_detect_anomaly(True) 
-    total_loss, total_num, train_bar = 0.0, 0, tqdm(data_loader)
-    device = torch.device(f"cuda:{rank}" if torch.cuda.is_available() else "cpu")  # Use the same device as the model
+    total_loss, total_num = 0.0, 0
+    device = torch.device(f"cuda:{rank}" if torch.cuda.is_available() else "cpu")
     net.train()
-    net=net.to(device)
-    for pos_1, pos_2, target in train_bar:
-       
+    net = net.to(device)
+    
+    # Create DataLoader iterator for distributed training
+    data_loader_iter = iter(data_loader)
+    
+    for batch_idx, (pos_1, pos_2, target) in enumerate(tqdm(data_loader_iter)):
         # Split the data according to the number of GPUs
         batch_size = pos_1.size(0)
         batch_gpu = batch_size // world_size
@@ -51,44 +53,50 @@ def train(rank, world_size, net, data_loader, train_optimizer,temperature):
         loss_accumulator = 0.0
         num_samples = 0
 
-        for batch_idx in range(world_size):
-          # Fetch the split data for this GPU
-          pos_1_batch = pos_1_split[batch_idx]
-          pos_2_batch = pos_2_split[batch_idx]
-          target_batch = target_split[batch_idx]
-          
-          # Zero the gradients
-          train_optimizer.zero_grad()
-          pos_1_batch, pos_1_batch = pos_1_batch.to(device, non_blocking=True), pos_1_batch.to(device, non_blocking=True)
-          target_batch = target_batch.to(device, non_blocking=True)  # Make sure target is also on the right device
-          # Forward pass
-          feature_1, out_1 = net(pos_1_batch)
-          feature_2, out_2 = net(pos_2_batch)
-             # [2*B, D]
-          out = torch.cat([out_1, out_2], dim=0)
-          # [2*B, 2*B]
-          sim_matrix = torch.exp(torch.mm(out, out.t().contiguous()) / temperature)
-          
-          mask = (torch.ones_like(sim_matrix) - torch.eye(2 * pos_1_batch.size(0), device=sim_matrix.device)).bool()
-          # [2*B, 2*B-1]
-          sim_matrix = sim_matrix.masked_select(mask).view(2 * pos_1_batch.size(0), -1)
-          
-          # compute loss
-          pos_sim = torch.exp(torch.sum(out_1 * out_2, dim=-1) / temperature)
-          # [2*B]
-          pos_sim = torch.cat([pos_sim, pos_sim], dim=0)
-          loss = (- torch.log(pos_sim / sim_matrix.sum(dim=-1))).mean()
-          train_optimizer.zero_grad(set_to_none=True)
-          loss.backward()
-          loss_accumulator += loss.item() * pos_1_batch.size(0)
-          num_samples += pos_1_batch.size(0)
-          
-          # Update weights
-          train_optimizer.step()
-        # Clip gradients (if needed, optional)
-        # for param in net.parameters():
-        #     if param.grad is not None:
-        #         param.grad.data.clamp_(-clip_value, clip_value)
+        for gpu_idx in range(world_size):
+            # Fetch the split data for this GPU
+            pos_1_batch = pos_1_split[gpu_idx].to(device, non_blocking=True)
+            pos_2_batch = pos_2_split[gpu_idx].to(device, non_blocking=True)
+            target_batch = target_split[gpu_idx].to(device, non_blocking=True)
+
+            # Zero the gradients
+            train_optimizer.zero_grad()
+            
+            try:
+                # Forward pass
+                feature_1, out_1 = net(pos_1_batch)
+                feature_2, out_2 = net(pos_2_batch)
+                
+                # Compute similarity matrix and loss
+                out = torch.cat([out_1, out_2], dim=0)
+                sim_matrix = torch.exp(torch.mm(out, out.t().contiguous()) / temperature)
+                
+                mask = (torch.ones_like(sim_matrix) - torch.eye(2 * pos_1_batch.size(0), device=sim_matrix.device)).bool()
+                sim_matrix = sim_matrix.masked_select(mask).view(2 * pos_1_batch.size(0), -1)
+                
+                pos_sim = torch.exp(torch.sum(out_1 * out_2, dim=-1) / temperature)
+                pos_sim = torch.cat([pos_sim, pos_sim], dim=0)
+                loss = (- torch.log(pos_sim / sim_matrix.sum(dim=-1))).mean()
+                
+                # Backward pass
+                loss.backward()
+
+                # Accumulate loss and sample count
+                loss_accumulator += loss.item() * pos_1_batch.size(0)
+                num_samples += pos_1_batch.size(0)
+                
+                # Update weights
+                train_optimizer.step()
+
+                # Clip gradients (if needed, optional)
+                # for param in net.parameters():
+                #     if param.grad is not None:
+                #         param.grad.data.clamp_(-clip_value, clip_value)
+
+            except Exception as e:
+                print(f"Exception during forward/backward pass on GPU {rank}: {e}")
+                torch.cuda.synchronize()  # Ensure all GPU operations are completed
+                raise e
 
         # Synchronize gradients across all GPUs
         if world_size > 1:
@@ -96,14 +104,14 @@ def train(rank, world_size, net, data_loader, train_optimizer,temperature):
                 if param.grad is not None:
                     dist.all_reduce(param.grad.data, op=dist.ReduceOp.SUM)
                     param.grad.data /= world_size
-        train_optimizer.step()
 
         total_num += pos_1.size(0)
-        total_loss += loss.item() * pos_1.size(0)
-        train_bar.set_description(f'Train Epoch: [{epoch}/{epochs}] Loss: {total_loss / total_num:.4f}')
+        total_loss += loss_accumulator
+
+        # Print the training progress
+        tqdm.write(f'Train Epoch: [{epoch}/{epochs}] Loss: {total_loss / total_num:.4f}')
 
     return total_loss / total_num
-
 def test(rank, world_size, net, memory_data_loader, test_data_loader):
     net.eval()
     total_top1, total_top5, total_num, feature_bank = 0.0, 0.0, 0, []
