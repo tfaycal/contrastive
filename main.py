@@ -117,7 +117,7 @@ def main(rank, world_size):
         memory_loader = DataLoader(memory_data, batch_size=batch_size, shuffle=True, num_workers=4)
 
         # model setup and optimizer config
-        model = Model(feature_dim).tp(device)
+        model = Model(feature_dim).tp(rank)
         
         
          # Use DDP only if using GPU
