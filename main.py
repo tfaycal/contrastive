@@ -30,7 +30,7 @@ def setup(rank, world_size):
     os.environ['NCCL_SOCKET_IFNAME'] = 'eth0'  # Specify the network interface
 
     torch.cuda.set_device(rank)
-    dist.init_process_group(backend='nccl', init_method='file:///path/to/shared/file', rank=rank, world_size=world_size)
+    dist.init_process_group(backend='nccl', rank=rank, world_size=world_size)
 
 def cleanup():
     dist.destroy_process_group()
