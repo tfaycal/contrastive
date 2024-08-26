@@ -117,12 +117,13 @@ def main(rank, world_size):
         # model setup and optimizer config
         model = Model(feature_dim)
         
-        model.to(device)
+        
          # Use DDP only if using GPU
         if torch.cuda.is_available():
             model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[rank])
         else:
             model = torch.nn.parallel.DistributedDataParallel(model)
+        model.to(device)
         flops, params = profile(model.module, inputs=(torch.randn(1, 3, 32, 32).cuda(),))
         flops, params = clever_format([flops, params])
         if rank == 0:
