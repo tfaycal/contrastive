@@ -15,7 +15,7 @@ import utils
 from model import Model
 
 def setup(rank, world_size):
-    os.environ['MASTER_ADDR'] = '127.0.0.1'
+    os.environ['MASTER_ADDR'] = '172.19.2.2'
     os.environ['MASTER_PORT'] = '29500'
     os.environ['WORLD_SIZE'] = str(world_size)
     os.environ['RANK'] = str(rank)
