@@ -119,11 +119,7 @@ def main(rank, world_size):
         feature_dim, temperature, k = args.feature_dim, args.temperature, args.k
         batch_size, epochs = args.batch_size, args.epochs
 
-        # Data preparation
-        train_data = CustomDatasetPair(data=utils.train_images, targets=utils.train_labels, transform=utils.train_transform)
-        memory_data = CustomDatasetPair(data=utils.mem_images, targets=utils.mem_labels, transform=utils.test_transform)
-        test_data = CustomDatasetPair(data=utils.test_images, targets=utils.test_labels, transform=utils.test_transform)
-
+  
          # data prepare
         train_data = utils.CustomDatasetPair(data=utils.train_images, targets=utils.train_labels, transform=utils.train_transform)
         memory_data = utils.CustomDatasetPair(data=utils.mem_images, targets=utils.mem_labels, transform=utils.test_transform)
