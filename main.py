@@ -56,8 +56,20 @@ def train(rank, world_size, net, data_loader, train_optimizer,temperature):
         # [2*B]
         pos_sim = torch.cat([pos_sim, pos_sim], dim=0)
         loss = (- torch.log(pos_sim / sim_matrix.sum(dim=-1))).mean()
-        train_optimizer.zero_grad()
+        train_optimizer.zero_grad(set_to_none=True)
         loss.backward()
+         
+        # Clip gradients (if needed, optional)
+        # for param in net.parameters():
+        #     if param.grad is not None:
+        #         param.grad.data.clamp_(-clip_value, clip_value)
+
+        # Synchronize gradients across all GPUs
+        if world_size > 1:
+            for param in net.parameters():
+                if param.grad is not None:
+                    dist.all_reduce(param.grad.data, op=dist.ReduceOp.SUM)
+                    param.grad.data /= world_size
         train_optimizer.step()
 
         total_num += pos_1.size(0)
