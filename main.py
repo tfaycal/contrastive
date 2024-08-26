@@ -107,7 +107,7 @@ def main(rank, world_size):
     setup_distributed(rank, world_size)
     device = torch.device(f"cuda:{rank}" if torch.cuda.is_available() else "cpu")
 
-    if rank == 0:
+    if rank == 1:
         parser = argparse.ArgumentParser(description='Train SimCLR')
         parser.add_argument('--feature_dim', default=128, type=int, help='Feature dim for latent vector')
         parser.add_argument('--temperature', default=0.5, type=float, help='Temperature used in softmax')
@@ -129,8 +129,8 @@ def main(rank, world_size):
         memory_loader = DataLoader(memory_data, batch_size=batch_size, shuffle=True, num_workers=2)
 
         # Model setup and optimizer config
-        model = Model(feature_dim).to(device)
-        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[device], output_device=device)
+        model = Model(feature_dim).to(rank)
+        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[rank], output_device=rank)
         
         flops, params = profile(model.module, inputs=(torch.randn(1, 3, 32, 32).to(device),))
         flops, params = clever_format([flops, params])
