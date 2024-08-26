@@ -171,5 +171,5 @@ def main(rank, world_size):
         
         cleanup()
 if __name__ == '__main__':
-    world_size = 2  # ou le nombre de GPUs disponibles
+    world_size = 1  # ou le nombre de GPUs disponibles
     mp.spawn(main, args=(world_size,), nprocs=world_size, join=True)
