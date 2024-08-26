@@ -25,8 +25,8 @@ def setup(rank, world_size):
     os.environ['RANK'] = str(rank)
     os.environ['NCCL_DEBUG'] = 'INFO'
     os.environ['NCCL_DEBUG_SUBSYS'] = 'ALL'
-    os.environ['NCCL_IB_DISABLE'] = '1'  # Disable Infiniband (IB), which can sometimes cause issues
-    os.environ['NCCL_P2P_DISABLE'] = '1'  # Disable P2P communication if it causes issues
+    os.environ['NCCL_IB_DISABLE'] = '0'  # Disable Infiniband (IB), which can sometimes cause issues
+    os.environ['NCCL_P2P_DISABLE'] = '0'  # Disable P2P communication if it causes issues
     os.environ['NCCL_SOCKET_IFNAME'] = 'eth0'  # Specify the network interface
 
     torch.cuda.set_device(rank)
