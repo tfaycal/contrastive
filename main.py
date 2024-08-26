@@ -125,7 +125,7 @@ def main(rank, world_size):
         model = Model(feature_dim).to(rank)
        
         
-         print(f"Rank {rank}: before DDP model creation")
+        print(f"Rank {rank}: before DDP model creation")
 
         # Use DDP only if using GPU
         if torch.cuda.is_available():
