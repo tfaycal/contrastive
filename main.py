@@ -90,6 +90,8 @@ def test(rank, world_size, net, memory_data_loader, test_data_loader):
 
 def main(rank, world_size):
     setup(rank, world_size)
+    # Define device
+    device = torch.device(f"cuda:{rank}" if torch.cuda.is_available() else "cpu")
 
     if rank == 0:
         parser = argparse.ArgumentParser(description='Train SimCLR')
@@ -114,7 +116,7 @@ def main(rank, world_size):
         # model setup and optimizer config
         model = Model(feature_dim)
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[rank])
-        model.to(rank)
+        model.to(device)
         flops, params = profile(model.module, inputs=(torch.randn(1, 3, 32, 32).cuda(),))
         flops, params = clever_format([flops, params])
         if rank == 0:
