@@ -128,9 +128,21 @@ def main(rank, world_size):
      test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False, num_workers=2)
      memory_loader = DataLoader(memory_data, batch_size=batch_size, shuffle=True, num_workers=2)
      
-     # Model setup and optimizer config
-     model = Model(feature_dim).to(rank)
-     model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[rank])
+    # model setup and optimizer config
+     model = Model(feature_dim).to(device)  # Ensure model is on the device
+     
+     print(f"Rank {rank}: before DDP model creation")
+     
+     # Use DDP only if using GPU
+     if torch.cuda.is_available():
+       print(f"Rank {rank}: setting up DDP model on GPU")
+       model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[rank], output_device=rank)
+     else:
+       print(f"Rank {rank}: setting up DDP model on CPU")
+       model = torch.nn.parallel.DistributedDataParallel(model)
+     
+     print(f"Rank {rank}: DDP model created successfully")
+
      
      flops, params = profile(model.module, inputs=(torch.randn(1, 3, 32, 32).to(device),))
      flops, params = clever_format([flops, params])
