@@ -6,7 +6,7 @@ import torch.multiprocessing as mp
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-
+from thop import profile, clever_format
 import utils
 from model import Model
 
