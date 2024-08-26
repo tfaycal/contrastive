@@ -124,8 +124,8 @@ def main(rank, world_size):
      train_data = utils.CustomDatasetPair(data=utils.train_images, targets=utils.train_labels, transform=utils.train_transform)
      memory_data = utils.CustomDatasetPair(data=utils.mem_images, targets=utils.mem_labels, transform=utils.test_transform)
      test_data = utils.CustomDatasetPair(data=utils.test_images, targets=utils.test_labels, transform=utils.test_transform)
-     train_loader = DataLoader(train_data, batch_size=batch_size, , shuffle=False, sampler=DistributedSampler(train_data))
-     test_loader = DataLoader(test_data, batch_size=batch_size, , shuffle=False, sampler=DistributedSampler(test_data))
+     train_loader = DataLoader(train_data, batch_size=batch_size,  shuffle=False, sampler=DistributedSampler(train_data))
+     test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False, sampler=DistributedSampler(test_data))
      memory_loader = DataLoader(memory_data, batch_size=batch_size, shuffle=False, sampler=DistributedSampler(memory_data))
      
     # model setup and optimizer config
