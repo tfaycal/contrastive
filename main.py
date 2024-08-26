@@ -14,7 +14,8 @@ def setup(rank, world_size):
     # Set up the distributed environment.
     dist.init_process_group(backend="nccl", rank=rank, world_size=world_size)
     torch.cuda.set_device(rank)
-
+def cleanup():
+    dist.destroy_process_group()
 def train(rank, world_size, net, data_loader, train_optimizer):
     net.train()
     total_loss, total_num, train_bar = 0.0, 0, tqdm(data_loader)
@@ -115,8 +116,13 @@ def main(rank, world_size):
 
         # model setup and optimizer config
         model = Model(feature_dim)
-        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[rank])
+        
         model.to(device)
+         # Use DDP only if using GPU
+        if torch.cuda.is_available():
+            model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[rank])
+        else:
+            model = torch.nn.parallel.DistributedDataParallel(model)
         flops, params = profile(model.module, inputs=(torch.randn(1, 3, 32, 32).cuda(),))
         flops, params = clever_format([flops, params])
         if rank == 0:
@@ -143,7 +149,8 @@ def main(rank, world_size):
                 if test_acc_1 > best_acc:
                     best_acc = test_acc_1
                     torch.save(model.state_dict(), 'results/{}_model.pth'.format(save_name_pre))
-
+        
+        cleanup()
 if __name__ == '__main__':
     world_size =2
     mp.spawn(main, args=(world_size,), nprocs=world_size, join=True)
