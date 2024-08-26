@@ -130,9 +130,9 @@ def main(rank, world_size):
      
      # Model setup and optimizer config
      model = Model(feature_dim).to(rank)
-     model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[rank], output_device=rank)
+     model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[rank])
      
-     flops, params = profile(model.module, inputs=(torch.randn(1, 3, 32, 32).to(device),))
+     flops, params = profile(model.module, inputs=(torch.randn(1, 3, 32, 32).to([rank]),))
      flops, params = clever_format([flops, params])
      if rank == 0:
        print('# Model Params: {} FLOPs: {}'.format(params, flops))
@@ -147,7 +147,7 @@ def main(rank, world_size):
      for epoch in range(1, epochs + 1):
        train_loss = train(rank, world_size, model, train_loader, optimizer)
        results['train_loss'].append(train_loss)
-       test_acc_1, test_acc_5 = test(rank, world_size, model, memory_loader, test_loader,device='1')
+       test_acc_1, test_acc_5 = test(rank, world_size, model, memory_loader, test_loader)
        results['test_acc@1'].append(test_acc_1)
        results['test_acc@5'].append(test_acc_5)
        if rank == 0:
