@@ -125,13 +125,17 @@ def main(rank, world_size):
         model = Model(feature_dim).to(rank)
        
         
-         # Use DDP only if using GPU
+         print(f"Rank {rank}: before DDP model creation")
+
+        # Use DDP only if using GPU
         if torch.cuda.is_available():
-            model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[rank],output_device=rank)
-            print('model créer')
+            print(f"Rank {rank}: setting up DDP model on GPU")
+            model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[rank], output_device=rank)
         else:
+            print(f"Rank {rank}: setting up DDP model on CPU")
             model = torch.nn.parallel.DistributedDataParallel(model)
-        print('model fini')
+        
+        print(f"Rank {rank}: DDP model created successfully")
         flops, params = profile(model.module, inputs=(torch.randn(1, 3, 32, 32).cuda(),))
         flops, params = clever_format([flops, params])
         if rank == 0:
