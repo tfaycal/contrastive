@@ -142,5 +142,5 @@ def main(rank, world_size):
                     torch.save(model.state_dict(), 'results/{}_model.pth'.format(save_name_pre))
 
 if __name__ == '__main__':
-    world_size = 2  # Set to 2 GPUs
+    world_size = torch.cuda.device_count()
     mp.spawn(main, args=(world_size,), nprocs=world_size, join=True)
