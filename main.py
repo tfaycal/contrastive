@@ -164,7 +164,6 @@ def main(rank, world_size):
     else:
          print('hello')
 if __name__ == "__main__":
-    # Example call, you would need to pass actual values for rank and world_size
-    main(rank=0, world_size=2)  # Adjust rank and world_size as needed
+    mp.spawn(main, args=(world_size,), nprocs=world_size, join=True)
 
 
