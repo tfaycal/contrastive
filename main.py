@@ -132,7 +132,7 @@ def main(rank, world_size):
      model = Model(feature_dim).to(rank)
      model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[rank])
      
-     flops, params = profile(model.module, inputs=(torch.randn(1, 3, 32, 32).to([rank]),))
+     flops, params = profile(model.module, inputs=(torch.randn(1, 3, 32, 32).to(device),))
      flops, params = clever_format([flops, params])
      if rank == 0:
        print('# Model Params: {} FLOPs: {}'.format(params, flops))
