@@ -11,9 +11,9 @@ import utils
 from model import Model
 
 def setup(rank, world_size):
-    # Set up the distributed environment.
-    dist.init_process_group(backend="nccl", rank=rank, world_size=world_size)
-    torch.cuda.set_device(rank)
+    os.environ['MASTER_ADDR'] = '127.0.0.1'
+    os.environ['MASTER_PORT'] = '29500'
+    dist.init_process_group("nccl", rank=rank, world_size=world_size)
 def cleanup():
     dist.destroy_process_group()
 def train(rank, world_size, net, data_loader, train_optimizer):
