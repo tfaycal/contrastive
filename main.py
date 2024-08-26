@@ -117,12 +117,12 @@ def main(rank, world_size):
         memory_loader = DataLoader(memory_data, batch_size=batch_size, shuffle=True, num_workers=4)
 
         # model setup and optimizer config
-        model = Model(feature_dim).to(device)
+        model = Model(feature_dim)
         
         
          # Use DDP only if using GPU
         if torch.cuda.is_available():
-            model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[rank],output_device=rank))
+            model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[rank],output_device=rank)
         else:
             model = torch.nn.parallel.DistributedDataParallel(model)
         
