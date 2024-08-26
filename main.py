@@ -19,6 +19,12 @@ import utils
 from model import Model
 
 def setup_distributed(rank, world_size):
+     # Set environment variables
+    os.environ['MASTER_ADDR'] = 'localhost'  # Set this to the address of your master node
+    os.environ['MASTER_PORT'] = '29500'       # Set this to an available port number
+    os.environ['WORLD_SIZE'] = str(world_size)
+    os.environ['RANK'] = str(rank)
+
     # Initialize the process group
     torch.distributed.init_process_group(backend='nccl', rank=rank, world_size=world_size)
     torch.cuda.set_device(rank)
