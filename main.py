@@ -124,13 +124,13 @@ def main(rank, world_size):
         memory_data = CustomDatasetPair(data=utils.mem_images, targets=utils.mem_labels, transform=utils.test_transform)
         test_data = CustomDatasetPair(data=utils.test_images, targets=utils.test_labels, transform=utils.test_transform)
 
-        train_sampler = DistributedSampler(train_data)
-        test_sampler = DistributedSampler(test_data)
-        memory_sampler = DistributedSampler(memory_data)
-
-        train_loader = DataLoader(train_data, batch_size=batch_size, sampler=train_sampler, pin_memory=True)
-        test_loader = DataLoader(test_data, batch_size=batch_size, sampler=test_sampler, pin_memory=True)
-        memory_loader = DataLoader(memory_data, batch_size=batch_size, sampler=memory_sampler, pin_memory=True)
+         # data prepare
+        train_data = utils.CustomDatasetPair(data=utils.train_images, targets=utils.train_labels, transform=utils.train_transform)
+        memory_data = utils.CustomDatasetPair(data=utils.mem_images, targets=utils.mem_labels, transform=utils.test_transform)
+        test_data = utils.CustomDatasetPair(data=utils.test_images, targets=utils.test_labels, transform=utils.test_transform)
+        train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=2)
+        test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False, num_workers=2)
+        memory_loader = DataLoader(memory_data, batch_size=batch_size, shuffle=True, num_workers=2)
 
         # Model setup and optimizer config
         model = Model(feature_dim).to(device)
@@ -151,7 +151,7 @@ def main(rank, world_size):
         for epoch in range(1, epochs + 1):
             train_loss = train(rank, world_size, model, train_loader, optimizer)
             results['train_loss'].append(train_loss)
-            test_acc_1, test_acc_5 = test(rank, world_size, model, memory_loader, test_loader)
+            test_acc_1, test_acc_5 = test(rank, world_size, model, memory_loader, test_loader,device='1')
             results['test_acc@1'].append(test_acc_1)
             results['test_acc@5'].append(test_acc_5)
             if rank == 0:
