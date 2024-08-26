@@ -18,19 +18,17 @@ from thop import profile, clever_format
 import utils
 from model import Model
 
-def setup(rank, world_size):
-    os.environ['MASTER_ADDR'] = 'localhost'
-    os.environ['MASTER_PORT'] = '29500'
-    os.environ['WORLD_SIZE'] = str(world_size)
-    os.environ['RANK'] = str(rank)
-    os.environ['NCCL_DEBUG'] = 'INFO'
-    os.environ['NCCL_DEBUG_SUBSYS'] = 'ALL'
-    os.environ['NCCL_IB_DISABLE'] = '0'  # Disable Infiniband (IB), which can sometimes cause issues
-    os.environ['NCCL_P2P_DISABLE'] = '0'  # Disable P2P communication if it causes issues
-    os.environ['NCCL_SOCKET_IFNAME'] = 'eth0'  # Specify the network interface
+def setup_distributed(rank, world_size):
+    temp_dir = '/tmp'  # Or another directory accessible to all processes
+    init_file = os.path.abspath(os.path.join(temp_dir, '.torch_distributed_init'))
 
-    torch.cuda.set_device(rank)
-    dist.init_process_group(backend='nccl', rank=rank, world_size=world_size)
+    if os.name == 'nt':
+        init_method = 'file:///' + init_file.replace('\\', '/')
+        dist.init_process_group(backend='gloo', init_method=init_method, rank=rank, world_size=world_size)
+    else:
+        init_method = f'file://{init_file}'
+        dist.init_process_group(backend='nccl', init_method=init_method, rank=rank, world_size=world_size)
+
 
 def cleanup():
     dist.destroy_process_group()
@@ -108,7 +106,7 @@ def test(rank, world_size, net, memory_data_loader, test_data_loader):
     return total_top1 / total_num * 100, total_top5 / total_num * 100
 
 def main(rank, world_size):
-    setup(rank, world_size)
+    setup_distributed(rank, world_size)
     # Define device
     device = torch.device(f"cuda:{rank}" if torch.cuda.is_available() else "cpu")
 
