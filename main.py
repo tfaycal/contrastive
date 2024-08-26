@@ -20,7 +20,7 @@ from model import Model
 
 def setup_distributed(rank, world_size):
      # Set environment variables
-    os.environ['MASTER_ADDR'] = 'localhost'  # Set this to the address of your master node
+    os.environ['MASTER_ADDR'] = '127.0.0.1'  # Set this to the address of your master node
     os.environ['MASTER_PORT'] = '29500'       # Set this to an available port number
     os.environ['WORLD_SIZE'] = str(world_size)
     os.environ['RANK'] = str(rank)
