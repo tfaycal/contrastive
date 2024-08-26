@@ -1,3 +1,4 @@
+%%writefile main.py
 import argparse
 import os
 import torch
