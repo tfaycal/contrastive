@@ -110,9 +110,9 @@ def main(rank, world_size):
         train_data = utils.CustomDatasetPair(data=utils.train_images, targets=utils.train_labels, transform=utils.train_transform)
         memory_data = utils.CustomDatasetPair(data=utils.mem_images, targets=utils.mem_labels, transform=utils.test_transform)
         test_data = utils.CustomDatasetPair(data=utils.test_images, targets=utils.test_labels, transform=utils.test_transform)
-        train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=2)
-        test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False, num_workers=2)
-        memory_loader = DataLoader(memory_data, batch_size=batch_size, shuffle=True, num_workers=2)
+        train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=8)
+        test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False, num_workers=8)
+        memory_loader = DataLoader(memory_data, batch_size=batch_size, shuffle=True, num_workers=8)
 
         # model setup and optimizer config
         model = Model(feature_dim).to(device)
