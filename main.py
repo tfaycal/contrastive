@@ -107,7 +107,7 @@ def main(rank, world_size):
     setup_distributed(rank, world_size)
     device = torch.device(f"cuda:{rank}" if torch.cuda.is_available() else "cpu")
 
-    if rank == 1:
+    if rank == 0:
         parser = argparse.ArgumentParser(description='Train SimCLR')
         parser.add_argument('--feature_dim', default=128, type=int, help='Feature dim for latent vector')
         parser.add_argument('--temperature', default=0.5, type=float, help='Temperature used in softmax')
