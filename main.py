@@ -32,7 +32,7 @@ def cleanup():
     dist.destroy_process_group()
 def train(rank, world_size, net, data_loader, train_optimizer,temperature):
      
-    
+    torch.autograd.set_detect_anomaly(True) 
     total_loss, total_num, train_bar = 0.0, 0, tqdm(data_loader)
     device = torch.device(f"cuda:{rank}" if torch.cuda.is_available() else "cpu")  # Use the same device as the model
     net.train()
