@@ -122,7 +122,7 @@ def main(rank, world_size):
         
          # Use DDP only if using GPU
         if torch.cuda.is_available():
-            model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[rank])
+            model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[rank],output_device=rank))
         else:
             model = torch.nn.parallel.DistributedDataParallel(model)
         
