@@ -104,61 +104,60 @@ def test(rank, world_size, net, memory_data_loader, test_data_loader):
     return total_top1 / total_num * 100, total_top5 / total_num * 100
 
 def main(rank, world_size):
-    setup_distributed(rank, world_size)
-    device = torch.device(f"cuda:{rank}" if torch.cuda.is_available() else "cpu")
+     setup_distributed(rank, world_size)
+     device = torch.device(f"cuda:{rank}" if torch.cuda.is_available() else "cpu")
 
-    if rank == 0:
-        parser = argparse.ArgumentParser(description='Train SimCLR')
-        parser.add_argument('--feature_dim', default=128, type=int, help='Feature dim for latent vector')
-        parser.add_argument('--temperature', default=0.5, type=float, help='Temperature used in softmax')
-        parser.add_argument('--k', default=200, type=int, help='Top k most similar images used to predict the label')
-        parser.add_argument('--batch_size', default=512, type=int, help='Number of images in each mini-batch')
-        parser.add_argument('--epochs', default=500, type=int, help='Number of sweeps over the dataset to train')
 
-        args = parser.parse_args()
-        feature_dim, temperature, k = args.feature_dim, args.temperature, args.k
-        batch_size, epochs = args.batch_size, args.epochs
-
-  
-         # data prepare
-        train_data = utils.CustomDatasetPair(data=utils.train_images, targets=utils.train_labels, transform=utils.train_transform)
-        memory_data = utils.CustomDatasetPair(data=utils.mem_images, targets=utils.mem_labels, transform=utils.test_transform)
-        test_data = utils.CustomDatasetPair(data=utils.test_images, targets=utils.test_labels, transform=utils.test_transform)
-        train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=2)
-        test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False, num_workers=2)
-        memory_loader = DataLoader(memory_data, batch_size=batch_size, shuffle=True, num_workers=2)
-
-        # Model setup and optimizer config
-        model = Model(feature_dim).to(rank)
-        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[rank], output_device=rank)
-        
-        flops, params = profile(model.module, inputs=(torch.randn(1, 3, 32, 32).to(device),))
-        flops, params = clever_format([flops, params])
-        if rank == 0:
-            print('# Model Params: {} FLOPs: {}'.format(params, flops))
-        optimizer = optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-6)
-
-        # Training loop
-        results = {'train_loss': [], 'test_acc@1': [], 'test_acc@5': []}
-        save_name_pre = f'{feature_dim}_{temperature}_{k}_{batch_size}_{epochs}'
-        if rank == 0 and not os.path.exists('results'):
-            os.mkdir('results')
-        best_acc = 0.0
-        for epoch in range(1, epochs + 1):
-            train_loss = train(rank, world_size, model, train_loader, optimizer)
-            results['train_loss'].append(train_loss)
-            test_acc_1, test_acc_5 = test(rank, world_size, model, memory_loader, test_loader,device='1')
-            results['test_acc@1'].append(test_acc_1)
-            results['test_acc@5'].append(test_acc_5)
-            if rank == 0:
-                # Save statistics
-                data_frame = pd.DataFrame(data=results, index=range(1, epoch + 1))
-                data_frame.to_csv(f'results/{save_name_pre}_statistics.csv', index_label='epoch')
-                if test_acc_1 > best_acc:
-                    best_acc = test_acc_1
-                    torch.save(model.state_dict(), f'results/{save_name_pre}_model.pth')
-    else:
-         print('hello')
+     parser = argparse.ArgumentParser(description='Train SimCLR')
+     parser.add_argument('--feature_dim', default=128, type=int, help='Feature dim for latent vector')
+     parser.add_argument('--temperature', default=0.5, type=float, help='Temperature used in softmax')
+     parser.add_argument('--k', default=200, type=int, help='Top k most similar images used to predict the label')
+     parser.add_argument('--batch_size', default=512, type=int, help='Number of images in each mini-batch')
+     parser.add_argument('--epochs', default=500, type=int, help='Number of sweeps over the dataset to train')
+     
+     args = parser.parse_args()
+     feature_dim, temperature, k = args.feature_dim, args.temperature, args.k
+     batch_size, epochs = args.batch_size, args.epochs
+     
+     
+     # data prepare
+     train_data = utils.CustomDatasetPair(data=utils.train_images, targets=utils.train_labels, transform=utils.train_transform)
+     memory_data = utils.CustomDatasetPair(data=utils.mem_images, targets=utils.mem_labels, transform=utils.test_transform)
+     test_data = utils.CustomDatasetPair(data=utils.test_images, targets=utils.test_labels, transform=utils.test_transform)
+     train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=2)
+     test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False, num_workers=2)
+     memory_loader = DataLoader(memory_data, batch_size=batch_size, shuffle=True, num_workers=2)
+     
+     # Model setup and optimizer config
+     model = Model(feature_dim).to(rank)
+     model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[rank], output_device=rank)
+     
+     flops, params = profile(model.module, inputs=(torch.randn(1, 3, 32, 32).to(device),))
+     flops, params = clever_format([flops, params])
+     if rank == 0:
+       print('# Model Params: {} FLOPs: {}'.format(params, flops))
+     optimizer = optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-6)
+     
+     # Training loop
+     results = {'train_loss': [], 'test_acc@1': [], 'test_acc@5': []}
+     save_name_pre = f'{feature_dim}_{temperature}_{k}_{batch_size}_{epochs}'
+     if rank == 0 and not os.path.exists('results'):
+       os.mkdir('results')
+     best_acc = 0.0
+     for epoch in range(1, epochs + 1):
+       train_loss = train(rank, world_size, model, train_loader, optimizer)
+       results['train_loss'].append(train_loss)
+       test_acc_1, test_acc_5 = test(rank, world_size, model, memory_loader, test_loader,device='1')
+       results['test_acc@1'].append(test_acc_1)
+       results['test_acc@5'].append(test_acc_5)
+       if rank == 0:
+           # Save statistics
+           data_frame = pd.DataFrame(data=results, index=range(1, epoch + 1))
+           data_frame.to_csv(f'results/{save_name_pre}_statistics.csv', index_label='epoch')
+           if test_acc_1 > best_acc:
+               best_acc = test_acc_1
+               torch.save(model.state_dict(), f'results/{save_name_pre}_model.pth')
+    
 if __name__ == "__main__":
     world_size = torch.cuda.device_count() if torch.cuda.is_available() else 1    
     mp.spawn(main, args=(world_size,), nprocs=world_size, join=True)
