@@ -16,7 +16,7 @@ from model import Model
 
 def setup(rank, world_size):
     os.environ['MASTER_ADDR'] = '172.19.2.2'
-    os.environ['MASTER_PORT'] = '29500'
+    os.environ['MASTER_PORT'] = '12355'
     os.environ['WORLD_SIZE'] = str(world_size)
     os.environ['RANK'] = str(rank)
     os.environ['NCCL_DEBUG'] = 'INFO'
@@ -25,7 +25,7 @@ def setup(rank, world_size):
     os.environ['NCCL_P2P_DISABLE'] = '1'  # Disable P2P communication if it causes issues
     os.environ['NCCL_SOCKET_IFNAME'] = 'eth0'  # Specify the network interface
 
-    print(rank)
+    torch.cuda.set_device(rank)
     dist.init_process_group("nccl", rank=rank, world_size=world_size)
 def cleanup():
     dist.destroy_process_group()
@@ -123,9 +123,9 @@ def main(rank, world_size):
         train_data = utils.CustomDatasetPair(data=utils.train_images, targets=utils.train_labels, transform=utils.train_transform)
         memory_data = utils.CustomDatasetPair(data=utils.mem_images, targets=utils.mem_labels, transform=utils.test_transform)
         test_data = utils.CustomDatasetPair(data=utils.test_images, targets=utils.test_labels, transform=utils.test_transform)
-        train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=4)
-        test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False, num_workers=4)
-        memory_loader = DataLoader(memory_data, batch_size=batch_size, shuffle=True, num_workers=4)
+        train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=False,sampler=DistributedSampler(train_data))
+        test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False,sampler=DistributedSampler(train_data))
+        memory_loader = DataLoader(memory_data, batch_size=batch_size, shuffle=False,sampler=DistributedSampler(train_data))
 
         # model setup and optimizer config
         model = Model(feature_dim).to(rank)
@@ -171,5 +171,5 @@ def main(rank, world_size):
         
         cleanup()
 if __name__ == '__main__':
-    world_size = 1  # ou le nombre de GPUs disponibles
+    world_size = 2  # ou le nombre de GPUs disponibles
     mp.spawn(main, args=(world_size,), nprocs=world_size, join=True)
