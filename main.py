@@ -115,7 +115,7 @@ def main(rank, world_size):
         memory_loader = DataLoader(memory_data, batch_size=batch_size, shuffle=True, num_workers=2)
 
         # model setup and optimizer config
-        model = Model(feature_dim)
+        model = Model(feature_dim).to(device)
         
         
          # Use DDP only if using GPU
@@ -123,7 +123,7 @@ def main(rank, world_size):
             model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[rank])
         else:
             model = torch.nn.parallel.DistributedDataParallel(model)
-        model.to(device)
+        
         flops, params = profile(model.module, inputs=(torch.randn(1, 3, 32, 32).cuda(),))
         flops, params = clever_format([flops, params])
         if rank == 0:
@@ -153,5 +153,5 @@ def main(rank, world_size):
         
         cleanup()
 if __name__ == '__main__':
-    world_size =2
+    world_size = 2  # ou le nombre de GPUs disponibles
     mp.spawn(main, args=(world_size,), nprocs=world_size, join=True)
