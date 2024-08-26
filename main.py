@@ -15,6 +15,7 @@ def setup(rank, world_size):
     os.environ['MASTER_PORT'] = '29500'
     os.environ['WORLD_SIZE'] = str(world_size)
     os.environ['RANK'] = str(rank)
+    print(rank)
     dist.init_process_group("nccl", rank=rank, world_size=world_size)
 def cleanup():
     dist.destroy_process_group()
@@ -118,7 +119,7 @@ def main(rank, world_size):
 
         # model setup and optimizer config
         model = Model(feature_dim).tp(rank)
-        
+        print('model créer')
         
          # Use DDP only if using GPU
         if torch.cuda.is_available():
