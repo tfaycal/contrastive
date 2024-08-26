@@ -143,5 +143,5 @@ def main(rank, world_size):
                     torch.save(model.state_dict(), 'results/{}_model.pth'.format(save_name_pre))
 
 if __name__ == '__main__':
-    world_size =1
+    world_size =2
     mp.spawn(main, args=(world_size,), nprocs=world_size, join=True)
