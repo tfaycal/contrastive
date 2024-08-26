@@ -38,7 +38,8 @@ def train(rank, world_size, net, data_loader, train_optimizer):
     for pos_1, pos_2, target in train_bar:
         pos_1, pos_2 = pos_1.to(device, non_blocking=True), pos_2.to(device, non_blocking=True)
         target = target.to(device, non_blocking=True)  # Make sure target is also on the right device
-        
+        feature_1, out_1 = net(pos_1)
+        feature_2, out_2 = net(pos_2)
         # [2*B, D]
         out = torch.cat([out_1, out_2], dim=0)
         # [2*B, 2*B]
