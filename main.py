@@ -30,7 +30,7 @@ def setup_distributed(rank, world_size):
     torch.cuda.set_device(rank)
 def cleanup():
     dist.destroy_process_group()
-def train(rank, world_size, net, data_loader, train_optimizer):
+def train(rank, world_size, net, data_loader, train_optimizer,temperature):
      
     
     total_loss, total_num, train_bar = 0.0, 0, tqdm(data_loader)
@@ -161,7 +161,7 @@ def main(rank, world_size):
        os.mkdir('results')
      best_acc = 0.0
      for epoch in range(1, epochs + 1):
-       train_loss = train(rank, world_size, model, train_loader, optimizer)
+       train_loss = train(rank, world_size, model, train_loader, optimizer temperature)
        results['train_loss'].append(train_loss)
        test_acc_1, test_acc_5 = test(rank, world_size, model, memory_loader, test_loader)
        results['test_acc@1'].append(test_acc_1)
