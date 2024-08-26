@@ -19,6 +19,12 @@ def setup(rank, world_size):
     os.environ['MASTER_PORT'] = '29500'
     os.environ['WORLD_SIZE'] = str(world_size)
     os.environ['RANK'] = str(rank)
+    os.environ['NCCL_DEBUG'] = 'INFO'
+    os.environ['NCCL_DEBUG_SUBSYS'] = 'ALL'
+    os.environ['NCCL_IB_DISABLE'] = '1'  # Disable Infiniband (IB), which can sometimes cause issues
+    os.environ['NCCL_P2P_DISABLE'] = '1'  # Disable P2P communication if it causes issues
+    os.environ['NCCL_SOCKET_IFNAME'] = 'eth0'  # Specify the network interface
+
     print(rank)
     dist.init_process_group("nccl", rank=rank, world_size=world_size)
 def cleanup():
