@@ -131,7 +131,7 @@ def main(rank, world_size):
             print('model créer')
         else:
             model = torch.nn.parallel.DistributedDataParallel(model)
-         print('model fini')
+        print('model fini')
         flops, params = profile(model.module, inputs=(torch.randn(1, 3, 32, 32).cuda(),))
         flops, params = clever_format([flops, params])
         if rank == 0:
