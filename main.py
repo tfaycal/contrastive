@@ -33,11 +33,12 @@ def cleanup():
 def train(rank, world_size, net, data_loader, train_optimizer):
     net.train()
     total_loss, total_num, train_bar = 0.0, 0, tqdm(data_loader)
+    device = torch.device(f"cuda:{rank}" if torch.cuda.is_available() else "cpu")  # Use the same device as the model
+    
     for pos_1, pos_2, target in train_bar:
-        pos_1, pos_2 = pos_1.cuda(non_blocking=True), pos_2.cuda(non_blocking=True)
-        feature_1, out_1 = net(pos_1)
-        feature_2, out_2 = net(pos_2)
-
+        pos_1, pos_2 = pos_1.to(device, non_blocking=True), pos_2.to(device, non_blocking=True)
+        target = target.to(device, non_blocking=True)  # Make sure target is also on the right device
+        
         # [2*B, D]
         out = torch.cat([out_1, out_2], dim=0)
         # [2*B, 2*B]
