@@ -161,7 +161,8 @@ def main(rank, world_size):
                 if test_acc_1 > best_acc:
                     best_acc = test_acc_1
                     torch.save(model.state_dict(), f'results/{save_name_pre}_model.pth')
-
+    else:
+         print('hello')
 if __name__ == "__main__":
     # Example call, you would need to pass actual values for rank and world_size
     main(rank=0, world_size=2)  # Adjust rank and world_size as needed
