@@ -33,9 +33,7 @@ class LossFunction:
         pos_sim = torch.exp(torch.sum(out_1 * out_2, dim=-1) / self.temperature)
         pos_sim = torch.cat([pos_sim, pos_sim], dim=0)
         loss = (-torch.log(pos_sim / sim_matrix.sum(dim=-1))).mean()
-        # Synchronize processes
-        if torch.distributed.is_available() and torch.distributed.is_initialized():
-            dist.barrier()
+       
         print(loss.device)
         loss.backward()  # Example gain = 1.0
 
