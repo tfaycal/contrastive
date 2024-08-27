@@ -22,14 +22,14 @@ def train(net, data_loader, train_optimizer, temperature):
         feature_1, out_1 = net(pos_1)
         feature_2, out_2 = net(pos_2)
 
-        out = torch.cat([out_1, out_2], dim=0)
+        out = torch.cat([out_1.clone(), out_2.clone()], dim=0)
         sim_matrix = torch.exp(torch.mm(out, out.t().contiguous()) / temperature)
 
         mask = (torch.ones_like(sim_matrix) - torch.eye(2 * pos_1.size(0), device=sim_matrix.device)).bool()
         sim_matrix = sim_matrix.masked_select(mask).view(2 * pos_1.size(0), -1)
 
         pos_sim = torch.exp(torch.sum(out_1 * out_2, dim=-1) / temperature)
-        pos_sim = torch.cat([pos_sim.clone(), pos_sim.clone()], dim=0)  # clone added
+        pos_sim = torch.cat([pos_sim.clone(), pos_sim.clone()], dim=0)
 
         loss = (-torch.log(pos_sim / sim_matrix.sum(dim=-1))).mean()
 
