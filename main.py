@@ -138,10 +138,11 @@ def distributed_train(local_rank, args):
 
     optimizer = optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-6)
     c = len(memory_data.classes)
-
+    device = torch.device(f'cuda:{rank}')
+    
     best_acc = 0.0
     for epoch in range(1, args.epochs + 1):
-        train_loss = train(model, train_loader, optimizer,args.temperature,20)
+        train_loss = train(model, train_loader, optimizer,args.temperature,20,device)
         test_acc_1, test_acc_5 = test(model, memory_loader, test_loader)
         
         if test_acc_1 > best_acc:
