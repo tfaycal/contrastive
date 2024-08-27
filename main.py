@@ -14,7 +14,7 @@ from model import Model
 DEFAULT_TIMEOUT = timedelta(seconds=10)
 
 # Function to train for one epoch
-def train(net, data_loader, train_optimizer):
+def train(net, data_loader, train_optimizer,temperature):
     net.train()
     total_loss, total_num, train_bar = 0.0, 0, tqdm(data_loader)
     for pos_1, pos_2, target in train_bar:
