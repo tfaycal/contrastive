@@ -14,60 +14,59 @@ from model import Model
 DEFAULT_TIMEOUT = timedelta(seconds=10)
 
 # Function to train for one epoch
-def train(net, data_loader, train_optimizer,temperature):
+def train(net, data_loader, train_optimizer, temperature, num_batches):
     net.train()
-    total_loss, total_num, train_bar = 0.0, 0, tqdm(data_loader)
-    accumulation_steps = 4  # Nombre de mini-batchs sur lesquels on accumule les gradients
+    total_loss, total_num = 0.0, 0
 
-for batch_idx, (pos_1, pos_2, target) in enumerate(train_bar):
-    pos_1, pos_2 = pos_1.cuda(non_blocking=True), pos_2.cuda(non_blocking=True)
+    # Initialize data iterator
+    data_iterator = iter(data_loader)
     
-    # Zero gradients for the optimizer at the beginning of each large batch
-    if batch_idx % accumulation_steps == 0:
+    for batch_idx, (pos_1, pos_2, target) in enumerate(train_bar):
+        pos_1, pos_2 = pos_1.cuda(non_blocking=True), pos_2.cuda(non_blocking=True)
+
+        # Split data into mini-batches
+        pos_1_batches = pos_1.split(pos_1.size(0) // num_batches)
+        pos_2_batches = pos_2.split(pos_2.size(0) // num_batches)
+        target_batches = target.split(target.size(0) // num_batches)
+
+        # Zero gradients
         train_optimizer.zero_grad(set_to_none=True)
-    
-    # Enable gradient calculation for the model
-    net.requires_grad_(True)
 
-    # Calculate features and output
-    feature_1, out_1 = net(pos_1)
-    feature_2, out_2 = net(pos_2)
+        for pos_1_batch, pos_2_batch, target_batch in zip(pos_1_batches, pos_2_batches, target_batches):
+            # Forward pass
+            feature_1, out_1 = net(pos_1_batch)
+            feature_2, out_2 = net(pos_2_batch)
 
-    # Concatenate outputs and compute similarity matrix
-    out = torch.cat([out_1, out_2], dim=0)
-    sim_matrix = torch.exp(torch.mm(out, out.t().contiguous()) / temperature)
+            # Compute similarity and loss
+            out = torch.cat([out_1, out_2], dim=0)
+            sim_matrix = torch.exp(torch.mm(out, out.t().contiguous()) / temperature)
+            mask = (torch.ones_like(sim_matrix) - torch.eye(2 * pos_1_batch.size(0), device=sim_matrix.device)).bool()
+            sim_matrix = sim_matrix.masked_select(mask).view(2 * pos_1_batch.size(0), -1)
 
-    mask = (torch.ones_like(sim_matrix) - torch.eye(2 * pos_1.size(0), device=sim_matrix.device)).bool()
-    sim_matrix = sim_matrix.masked_select(mask).view(2 * pos_1.size(0), -1)
+            pos_sim = torch.exp(torch.sum(out_1 * out_2, dim=-1) / temperature)
+            pos_sim = torch.cat([pos_sim, pos_sim], dim=0)
+            loss = (- torch.log(pos_sim / sim_matrix.sum(dim=-1))).mean()
 
-    # Compute loss
-    pos_sim = torch.exp(torch.sum(out_1 * out_2, dim=-1) / temperature)
-    pos_sim = torch.cat([pos_sim, pos_sim], dim=0)
-    loss = (- torch.log(pos_sim / sim_matrix.sum(dim=-1))).mean()
+            # Accumulate gradients
+            loss.backward(retain_graph=True)
 
-    # Normalize loss to account for accumulation
-    loss = loss / accumulation_steps
+        # Update weights
+        with torch.autograd.profiler.record_function('optimizer_step'):
+            # Average gradients across GPUs if using distributed training
+            if torch.distributed.is_available() and torch.distributed.is_initialized():
+                for param in net.parameters():
+                    if param.grad is not None:
+                        torch.distributed.all_reduce(param.grad.data)
+                        param.grad.data /= torch.distributed.get_world_size()
 
-    # Accumulate gradients
-    loss.backward()
+            train_optimizer.step()
 
-    # Perform optimization step every accumulation_steps mini-batches
-    if (batch_idx + 1) % accumulation_steps == 0:
-        train_optimizer.step()
+        total_num += pos_1.size(0)
+        total_loss += loss.item() * pos_1.size(0)
+        train_bar.set_description(f'Train Epoch: [{epoch}/{epochs}] Loss: {total_loss / total_num:.4f}')
 
-    # Disable gradient calculation after step
-    net.requires_grad_(False)
+    return total_loss / total_num
 
-    # Update metrics
-    total_num += pos_1.size(0)
-    total_loss += loss.item() * accumulation_steps * pos_1.size(0)
-    train_bar.set_description('Train Epoch: [{}/{}] Loss: {:.4f}'.format(epoch, epochs, total_loss / total_num))
-
-    # Perform a final optimizer step in case the last batch was not a multiple of accumulation_steps
-    if (batch_idx + 1) % accumulation_steps != 0:
-        train_optimizer.step()
-
-return total_loss / total_num
 
 # Function to test for one epoch
 def test(net, memory_data_loader, test_data_loader):
@@ -124,7 +123,7 @@ def distributed_train(local_rank, args):
 
     best_acc = 0.0
     for epoch in range(1, args.epochs + 1):
-        train_loss = train(model, train_loader, optimizer,args.temperature)
+        train_loss = train(model, train_loader, optimizer,args.temperature,20)
         test_acc_1, test_acc_5 = test(model, memory_loader, test_loader)
         
         if test_acc_1 > best_acc:
