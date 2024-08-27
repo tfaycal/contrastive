@@ -11,18 +11,44 @@ from tqdm import tqdm
 import utils
 from model import Model
 
-DEFAULT_TIMEOUT = timedelta(seconds=10)
+class LossFunction:
+    def __init__(self, net, device, temperature):
+        self.net = net
+        self.device = device
+        self.temperature = temperature
 
-# Function to train for one epoch
-def train(net, data_loader, train_optimizer, temperature, num_batches):
+    def accumulate_gradients(self, phase, pos_1_batch, pos_2_batch, target_batch, gain, cur_nimg):
+        assert phase in ['train_phase_name'], "Invalid phase name"
+
+        # Forward pass
+        feature_1, out_1 = self.net(pos_1_batch)
+        feature_2, out_2 = self.net(pos_2_batch)
+
+        # Compute similarity matrix
+        out = torch.cat([out_1, out_2], dim=0)
+        sim_matrix = torch.exp(torch.mm(out, out.t().contiguous()) / self.temperature)
+        mask = (torch.ones_like(sim_matrix) - torch.eye(2 * pos_1_batch.size(0), device=sim_matrix.device)).bool()
+        sim_matrix = sim_matrix.masked_select(mask).view(2 * pos_1_batch.size(0), -1)
+
+        pos_sim = torch.exp(torch.sum(out_1 * out_2, dim=-1) / self.temperature)
+        pos_sim = torch.cat([pos_sim, pos_sim], dim=0)
+        loss = (-torch.log(pos_sim / sim_matrix.sum(dim=-1))).mean()
+
+        # Accumulate gradients
+        loss.mean().mul(gain).backward()
+
+# Exemple d'utilisation dans votre fonction d'entraînement
+def train(net, data_loader, train_optimizer, temperature, num_batches, device):
     net.train()
+    loss_fn = LossFunction(net, device, temperature)
     total_loss, total_num = 0.0, 0
 
     # Initialize data iterator
     data_iterator = iter(data_loader)
     total_loss, total_num, train_bar = 0.0, 0, tqdm(data_loader)
+
     for batch_idx, (pos_1, pos_2, target) in enumerate(train_bar):
-        pos_1, pos_2 = pos_1.cuda(non_blocking=True), pos_2.cuda(non_blocking=True)
+        pos_1, pos_2, target = pos_1.to(device), pos_2.to(device), target.to(device)
 
         # Split data into mini-batches
         pos_1_batches = pos_1.split(pos_1.size(0) // num_batches)
@@ -33,22 +59,15 @@ def train(net, data_loader, train_optimizer, temperature, num_batches):
         train_optimizer.zero_grad(set_to_none=True)
 
         for pos_1_batch, pos_2_batch, target_batch in zip(pos_1_batches, pos_2_batches, target_batches):
-            # Forward pass
-            feature_1, out_1 = net(pos_1_batch)
-            feature_2, out_2 = net(pos_2_batch)
-
-            # Compute similarity and loss
-            out = torch.cat([out_1, out_2], dim=0)
-            sim_matrix = torch.exp(torch.mm(out, out.t().contiguous()) / temperature)
-            mask = (torch.ones_like(sim_matrix) - torch.eye(2 * pos_1_batch.size(0), device=sim_matrix.device)).bool()
-            sim_matrix = sim_matrix.masked_select(mask).view(2 * pos_1_batch.size(0), -1)
-
-            pos_sim = torch.exp(torch.sum(out_1 * out_2, dim=-1) / temperature)
-            pos_sim = torch.cat([pos_sim, pos_sim], dim=0)
-            loss = (- torch.log(pos_sim / sim_matrix.sum(dim=-1))).mean()
-
-            # Accumulate gradients
-            loss.backward()
+            # Use accumulate_gradients instead of loss.backward()
+            loss_fn.accumulate_gradients(
+                phase="train_phase_name",  # Adjust this phase based on your requirements
+                pos_1_batch=pos_1_batch, 
+                pos_2_batch=pos_2_batch, 
+                target_batch=target_batch, 
+                gain=1.0,  # Adjust this value if necessary
+                cur_nimg=batch_idx  # Current batch index or other relevant metric
+            )
 
         # Update weights
         with torch.autograd.profiler.record_function('optimizer_step'):
@@ -66,7 +85,6 @@ def train(net, data_loader, train_optimizer, temperature, num_batches):
         train_bar.set_description(f'Train Epoch: [{epoch}/{epochs}] Loss: {total_loss / total_num:.4f}')
 
     return total_loss / total_num
-
 
 # Function to test for one epoch
 def test(net, memory_data_loader, test_data_loader):
