@@ -34,8 +34,16 @@ class LossFunction:
         pos_sim = torch.cat([pos_sim, pos_sim], dim=0)
         loss = (-torch.log(pos_sim / sim_matrix.sum(dim=-1))).mean()
 
+        
+        # Check for NaN or Inf in loss
+        if torch.isnan(loss).any() or torch.isinf(loss).any():
+            print("Loss contains NaN or Inf values.")
+            continue  # Skip this batch if loss is problematic
+
         # Accumulate gradients
-        loss.mean().mul(gain).backward()
+        loss_value = loss.mean()  # Ensure 'loss' is a scalar
+        loss_value.mul(1.0).backward()  # Example gain = 1.0
+
 
 # Exemple d'utilisation dans votre fonction d'entraînement
 def train(net, data_loader, train_optimizer, temperature, num_batches, device):
