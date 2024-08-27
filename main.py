@@ -17,7 +17,7 @@ class LossFunction:
         self.device = device
         self.temperature = temperature
 
-    def accumulate_gradients(self, phase, pos_1_batch, pos_2_batch, target_batch, gain, cur_nimg):
+    def accumulate_gradients(self, phase, pos_1_batch, pos_2_batch, target_batch):
         assert phase in ['train_phase_name'], "Invalid phase name"
 
         # Forward pass
@@ -33,16 +33,10 @@ class LossFunction:
         pos_sim = torch.exp(torch.sum(out_1 * out_2, dim=-1) / self.temperature)
         pos_sim = torch.cat([pos_sim, pos_sim], dim=0)
         loss = (-torch.log(pos_sim / sim_matrix.sum(dim=-1))).mean()
-
-        
-        # Check for NaN or Inf in loss
-        if torch.isnan(loss).any() or torch.isinf(loss).any():
-            print("Loss contains NaN or Inf values.")
-            return  # Skip this batch if loss is problematic
-
-        # Accumulate gradients
-        loss_value = loss.mean()  # Ensure 'loss' is a scalar
-        loss_value.mul(1.0).backward()  # Example gain = 1.0
+        # Synchronize processes
+        if torch.distributed.is_available() and torch.distributed.is_initialized():
+            dist.barrier()
+        loss.backward()  # Example gain = 1.0
 
 
 # Exemple d'utilisation dans votre fonction d'entraînement
@@ -72,9 +66,7 @@ def train(net, data_loader, train_optimizer, temperature, num_batches, device):
                 phase="train_phase_name",  # Adjust this phase based on your requirements
                 pos_1_batch=pos_1_batch, 
                 pos_2_batch=pos_2_batch, 
-                target_batch=target_batch, 
-                gain=1.0,  # Adjust this value if necessary
-                cur_nimg=batch_idx  # Current batch index or other relevant metric
+                target_batch=target_batch
             )
 
         # Update weights
