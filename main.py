@@ -34,7 +34,7 @@ def train(net, data_loader, train_optimizer, temperature):
         loss = (-torch.log(pos_sim / sim_matrix.sum(dim=-1))).mean()
 
         train_optimizer.zero_grad()
-        loss.backward()
+        loss.backward(retain_graph = True)
         train_optimizer.step()
 
         total_num += pos_1.size(0)
