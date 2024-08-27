@@ -48,7 +48,7 @@ def train(net, data_loader, train_optimizer, temperature, num_batches):
             loss = (- torch.log(pos_sim / sim_matrix.sum(dim=-1))).mean()
 
             # Accumulate gradients
-            loss.backward(retain_graph=True)
+            loss.backward()
 
         # Update weights
         with torch.autograd.profiler.record_function('optimizer_step'):
