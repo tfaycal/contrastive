@@ -138,7 +138,7 @@ def distributed_train(local_rank, args):
 
     optimizer = optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-6)
     c = len(memory_data.classes)
-    device = torch.device(f'cuda:{rank}')
+    device = torch.device(f'cuda:{local_rank}')
     
     best_acc = 0.0
     for epoch in range(1, args.epochs + 1):
