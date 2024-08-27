@@ -38,7 +38,7 @@ class LossFunction:
         # Check for NaN or Inf in loss
         if torch.isnan(loss).any() or torch.isinf(loss).any():
             print("Loss contains NaN or Inf values.")
-            continue  # Skip this batch if loss is problematic
+            return  # Skip this batch if loss is problematic
 
         # Accumulate gradients
         loss_value = loss.mean()  # Ensure 'loss' is a scalar
