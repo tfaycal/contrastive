@@ -20,7 +20,7 @@ def train(net, data_loader, train_optimizer, temperature, num_batches):
 
     # Initialize data iterator
     data_iterator = iter(data_loader)
-    
+    total_loss, total_num, train_bar = 0.0, 0, tqdm(data_loader)
     for batch_idx, (pos_1, pos_2, target) in enumerate(train_bar):
         pos_1, pos_2 = pos_1.cuda(non_blocking=True), pos_2.cuda(non_blocking=True)
 
