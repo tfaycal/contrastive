@@ -36,6 +36,7 @@ class LossFunction:
         # Synchronize processes
         if torch.distributed.is_available() and torch.distributed.is_initialized():
             dist.barrier()
+        print(loss.device)
         loss.backward()  # Example gain = 1.0
 
 
