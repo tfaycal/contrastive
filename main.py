@@ -38,16 +38,13 @@ class LossFunction:
         loss.backward()  # Example gain = 1.0
 
 
-# Exemple d'utilisation dans votre fonction d'entraînement
+
 def train(net, data_loader, train_optimizer, temperature, num_batches, device):
     net.train()
-    loss_fn = LossFunction(net, device, temperature)
     total_loss, total_num = 0.0, 0
 
     # Initialize data iterator
-    data_iterator = iter(data_loader)
     total_loss, total_num, train_bar = 0.0, 0, tqdm(data_loader)
-
     for batch_idx, (pos_1, pos_2, target) in enumerate(train_bar):
         pos_1, pos_2, target = pos_1.to(device), pos_2.to(device), target.to(device)
 
@@ -60,13 +57,46 @@ def train(net, data_loader, train_optimizer, temperature, num_batches, device):
         train_optimizer.zero_grad(set_to_none=True)
 
         for pos_1_batch, pos_2_batch, target_batch in zip(pos_1_batches, pos_2_batches, target_batches):
-            # Use accumulate_gradients instead of loss.backward()
-            loss_fn.accumulate_gradients(
-                phase="train_phase_name",  # Adjust this phase based on your requirements
-                pos_1_batch=pos_1_batch, 
-                pos_2_batch=pos_2_batch, 
-                target_batch=target_batch
-            )
+            # Forward pass
+            feature_1, out_1 = net(pos_1_batch)
+            feature_2, out_2 = net(pos_2_batch)
+
+            # Compute similarity and loss
+            out = torch.cat([out_1, out_2], dim=0)
+            sim_matrix = torch.exp(torch.mm(out, out.t().contiguous()) / temperature)
+            mask = (torch.ones_like(sim_matrix) - torch.eye(2 * pos_1_batch.size(0), device=sim_matrix.device)).bool()
+            sim_matrix = sim_matrix.masked_select(mask).view(2 * pos_1_batch.size(0), -1)
+
+            pos_sim = torch.exp(torch.sum(out_1 * out_2, dim=-1) / temperature)
+            pos_sim = torch.cat([pos_sim, pos_sim], dim=0)
+
+            # Ensure no NaN or Inf values in tensors
+            if torch.isnan(sim_matrix).any() or torch.isinf(sim_matrix).any():
+                print("Sim matrix contains NaN or Inf values.")
+                continue  # Skip this batch if sim_matrix is problematic
+
+            if torch.isnan(pos_sim).any() or torch.isinf(pos_sim).any():
+                print("Pos sim contains NaN or Inf values.")
+                continue  # Skip this batch if pos_sim is problematic
+
+            # Compute loss
+            sim_matrix_sum = sim_matrix.sum(dim=-1)
+            if torch.isnan(sim_matrix_sum).any() or torch.isinf(sim_matrix_sum).any():
+                print("Sim matrix sum contains NaN or Inf values.")
+                continue  # Skip this batch if sim_matrix_sum is problematic
+
+            loss = -torch.log(pos_sim / sim_matrix_sum)
+            if torch.isnan(loss).any() or torch.isinf(loss).any():
+                print("Loss contains NaN or Inf values.")
+                continue  # Skip this batch if loss is problematic
+
+            # Reduce loss across processes
+            if torch.distributed.is_available() and torch.distributed.is_initialized():
+                dist.barrier()  # Ensure all processes reach this point before proceeding
+
+            # Accumulate gradients
+            torch.autograd.set_detect_anomaly(True)
+            loss.mean().mul(1.0).backward()  # Example gain = 1.0
 
         # Update weights
         with torch.autograd.profiler.record_function('optimizer_step'):
@@ -74,8 +104,8 @@ def train(net, data_loader, train_optimizer, temperature, num_batches, device):
             if torch.distributed.is_available() and torch.distributed.is_initialized():
                 for param in net.parameters():
                     if param.grad is not None:
-                        torch.distributed.all_reduce(param.grad.data)
-                        param.grad.data /= torch.distributed.get_world_size()
+                        dist.all_reduce(param.grad.data)
+                        param.grad.data /= dist.get_world_size()
 
             train_optimizer.step()
 
