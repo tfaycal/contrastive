@@ -177,9 +177,10 @@ def main(rank, world_size):
      train_loader = DataLoader(train_data, batch_size=batch_size,  shuffle=False, sampler=DistributedSampler(train_data))
      test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False, sampler=DistributedSampler(test_data))
      memory_loader = DataLoader(memory_data, batch_size=batch_size, shuffle=False, sampler=DistributedSampler(memory_data))
-     
+     rank = dist.get_rank()
+     torch.cuda.set_device(rank)
     # model setup and optimizer config
-     model = Model(feature_dim).to(device)  # Ensure model is on the device
+     model = Model(feature_dim).cuda() # Ensure model is on the device
      
      print(f"Rank {rank}: before DDP model creation")
      
