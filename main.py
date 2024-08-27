@@ -14,7 +14,7 @@ from model import Model
 DEFAULT_TIMEOUT = timedelta(seconds=10)
 
 # Function to train for one epoch
-def train(net, data_loader, train_optimizer):
+def train(net, data_loader, train_optimizer,temperature):
     net.train()
     total_loss, total_num, train_bar = 0.0, 0, tqdm(data_loader)
     for pos_1, pos_2, target in train_bar:
@@ -97,7 +97,7 @@ def distributed_train(local_rank, args):
 
     best_acc = 0.0
     for epoch in range(1, args.epochs + 1):
-        train_loss = train(model, train_loader, optimizer)
+        train_loss = train(model, train_loader, optimizer,args.temperature)
         test_acc_1, test_acc_5 = test(model, memory_loader, test_loader)
         
         if test_acc_1 > best_acc:
