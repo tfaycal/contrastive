@@ -38,7 +38,6 @@ class LossFunction:
         loss.backward()  # Example gain = 1.0
 
 
-
 def train(net, data_loader, train_optimizer, temperature, num_batches, device):
     net.train()
     total_loss, total_num = 0.0, 0
@@ -70,22 +69,11 @@ def train(net, data_loader, train_optimizer, temperature, num_batches, device):
             pos_sim = torch.exp(torch.sum(out_1 * out_2, dim=-1) / temperature)
             pos_sim = torch.cat([pos_sim, pos_sim], dim=0)
 
-            # Ensure no NaN or Inf values in tensors
-            if torch.isnan(sim_matrix).any() or torch.isinf(sim_matrix).any():
-                print("Sim matrix contains NaN or Inf values.")
-                continue  # Skip this batch if sim_matrix is problematic
-
-            if torch.isnan(pos_sim).any() or torch.isinf(pos_sim).any():
-                print("Pos sim contains NaN or Inf values.")
-                continue  # Skip this batch if pos_sim is problematic
-
             # Compute loss
             sim_matrix_sum = sim_matrix.sum(dim=-1)
-            if torch.isnan(sim_matrix_sum).any() or torch.isinf(sim_matrix_sum).any():
-                print("Sim matrix sum contains NaN or Inf values.")
-                continue  # Skip this batch if sim_matrix_sum is problematic
-
             loss = -torch.log(pos_sim / sim_matrix_sum)
+
+            # Ensure no NaN or Inf values in tensors
             if torch.isnan(loss).any() or torch.isinf(loss).any():
                 print("Loss contains NaN or Inf values.")
                 continue  # Skip this batch if loss is problematic
@@ -96,7 +84,7 @@ def train(net, data_loader, train_optimizer, temperature, num_batches, device):
 
             # Accumulate gradients
             torch.autograd.set_detect_anomaly(True)
-            loss.mean().mul(1.0).backward()  # Example gain = 1.0
+            loss.backward(retain_graph=True)   
 
         # Update weights
         with torch.autograd.profiler.record_function('optimizer_step'):
