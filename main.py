@@ -35,11 +35,7 @@ def train(rank, world_size, net, data_loader, train_optimizer, temperature, epoc
     total_loss, total_num = 0.0, 0
     device = torch.device(f"cuda:{rank}" if torch.cuda.is_available() else "cpu")
     net.train()
-    net = net.to(device)
-    
-    # Create DataLoader iterator for distributed training
-    data_loader_iter = iter(data_loader)
-    
+    total_loss, total_num, train_bar = 0.0, 0, tqdm(data_loader)
     for pos_1, pos_2, target in train_bar:
         pos_1, pos_2 = pos_1.cuda(non_blocking=True), pos_2.cuda(non_blocking=True)
         feature_1, out_1 = net(pos_1)
