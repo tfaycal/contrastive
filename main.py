@@ -72,19 +72,12 @@ def train(net, data_loader, train_optimizer, temperature, num_batches, device):
             # Compute loss
             sim_matrix_sum = sim_matrix.sum(dim=-1)
             loss = -torch.log(pos_sim / sim_matrix_sum)
-
-            # Ensure no NaN or Inf values in tensors
-            if torch.isnan(loss).any() or torch.isinf(loss).any():
-                print("Loss contains NaN or Inf values.")
-                continue  # Skip this batch if loss is problematic
-
-            # Reduce loss across processes
-            if torch.distributed.is_available() and torch.distributed.is_initialized():
-                dist.barrier()  # Ensure all processes reach this point before proceeding
+            loss = loss.mean()  # Ensure loss is a scalar
 
             # Accumulate gradients
             torch.autograd.set_detect_anomaly(True)
-            loss.backward(retain_graph=True)   
+            loss.backward()  # No need for retain_graph=True unless multiple backward passes are required
+  
 
         # Update weights
         with torch.autograd.profiler.record_function('optimizer_step'):
