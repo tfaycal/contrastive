@@ -14,7 +14,7 @@ from model import Model
 DEFAULT_TIMEOUT = timedelta(seconds=10)
 
 # Function to train for one epoch
-def train(net, data_loader, train_optimizer,temperature):
+def train(net, data_loader, train_optimizer, temperature):
     net.train()
     total_loss, total_num, train_bar = 0.0, 0, tqdm(data_loader)
     for pos_1, pos_2, target in train_bar:
@@ -29,7 +29,8 @@ def train(net, data_loader, train_optimizer,temperature):
         sim_matrix = sim_matrix.masked_select(mask).view(2 * pos_1.size(0), -1)
 
         pos_sim = torch.exp(torch.sum(out_1 * out_2, dim=-1) / temperature)
-        pos_sim = torch.cat([pos_sim, pos_sim], dim=0)
+        pos_sim = torch.cat([pos_sim.clone(), pos_sim.clone()], dim=0)  # clone added
+
         loss = (-torch.log(pos_sim / sim_matrix.sum(dim=-1))).mean()
 
         train_optimizer.zero_grad()
